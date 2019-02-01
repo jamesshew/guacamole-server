@@ -16,6 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+# NOTE: Parts of this file (Makefile.am) are automatically transcluded verbatim
+# into Makefile.in. Though the build system (GNU Autotools) automatically adds
+# its own license boilerplate to the generated Makefile.in, that boilerplate
+# does not apply to the transcluded portions of Makefile.am which are licensed
+# to you by the ASF under the Apache License, Version 2.0, as described above.
+#
 
 AUTOMAKE_OPTIONS = foreign
 ACLOCAL_AMFLAGS = -I m4
@@ -28,6 +34,7 @@ nodist_libguac_client_rdp_la_SOURCES = \
 libguac_client_rdp_la_SOURCES = \
     audio_input.c               \
     client.c                    \
+    decompose.c                 \
     dvc.c                       \
     error.c                     \
     input.c                     \
@@ -98,6 +105,7 @@ noinst_HEADERS =                             \
     guac_svc/svc_service.h                   \
     audio_input.h                            \
     client.h                                 \
+    decompose.h                              \
     dvc.h                                    \
     error.h                                  \
     input.h                                  \
@@ -258,7 +266,8 @@ rdp_keymaps =                   \
     $(srcdir)/keymaps/it_it_qwerty.keymap \
     $(srcdir)/keymaps/ja_jp_qwerty.keymap \
     $(srcdir)/keymaps/pt_br_qwerty.keymap \
-    $(srcdir)/keymaps/sv_se_qwerty.keymap
+    $(srcdir)/keymaps/sv_se_qwerty.keymap \
+    $(srcdir)/keymaps/tr_tr_qwerty.keymap
 
 _generated_keymaps.c: $(rdp_keymaps)
 	$(srcdir)/keymaps/generate.pl $(rdp_keymaps)

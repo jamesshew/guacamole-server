@@ -261,7 +261,8 @@ void* guac_vnc_client_thread(void* data) {
         /* Attempt SSH connection */
         vnc_client->sftp_session =
             guac_common_ssh_create_session(client, settings->sftp_hostname,
-                    settings->sftp_port, vnc_client->sftp_user, settings->sftp_server_alive_interval);
+                    settings->sftp_port, vnc_client->sftp_user, settings->sftp_server_alive_interval,
+                    settings->sftp_host_key);
 
         /* Fail if SSH connection does not succeed */
         if (vnc_client->sftp_session == NULL) {
@@ -303,14 +304,14 @@ void* guac_vnc_client_thread(void* data) {
 
     /* Set up screen recording, if requested */
     if (settings->recording_path != NULL) {
-        guac_common_recording_create(client,
+        vnc_client->recording = guac_common_recording_create(client,
                 settings->recording_path,
                 settings->recording_name,
-                settings->create_recording_path);
+                settings->create_recording_path,
+                !settings->recording_exclude_output,
+                !settings->recording_exclude_mouse,
+                settings->recording_include_keys);
     }
-
-    /* Send name */
-    guac_protocol_send_name(client->socket, rfb_client->desktopName);
 
     /* Create display */
     vnc_client->display = guac_common_display_alloc(client,

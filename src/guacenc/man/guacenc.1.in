@@ -16,7 +16,7 @@
 .\" specific language governing permissions and limitations
 .\" under the License.
 .\"
-.TH guacenc 1 "1 Jun 2017" "version 0.9.13-incubating" "Guacamole"
+.TH guacenc 1 "26 Jan 2018" "version @PACKAGE_VERSION@" "Apache Guacamole"
 .
 .SH NAME
 guacenc \- Guacamole video encoder
@@ -76,5 +76,5 @@ Overrides the default behavior of
 such that input files will be encoded even if they appear to be recordings of
 in-progress Guacamole sessions.
 .
-.SH AUTHOR
-Written by Michael Jumper <mike.jumper@guac-dev.org>
+.SH SEE ALSO
+.BR guaclog (1)

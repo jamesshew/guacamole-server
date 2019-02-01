@@ -52,7 +52,9 @@ const char* GUAC_RDP_CLIENT_ARGS[] = {
     "color-depth",
     "disable-audio",
     "enable-printing",
+    "printer-name",
     "enable-drive",
+    "drive-name",
     "drive-path",
     "create-drive-path",
     "console",
@@ -72,12 +74,16 @@ const char* GUAC_RDP_CLIENT_ARGS[] = {
     "enable-full-window-drag",
     "enable-desktop-composition",
     "enable-menu-animations",
+    "disable-bitmap-caching",
+    "disable-offscreen-caching",
+    "disable-glyph-caching",
     "preconnection-id",
     "preconnection-blob",
 
 #ifdef ENABLE_COMMON_SSH
     "enable-sftp",
     "sftp-hostname",
+    "sftp-host-key",
     "sftp-port",
     "sftp-username",
     "sftp-password",
@@ -90,6 +96,9 @@ const char* GUAC_RDP_CLIENT_ARGS[] = {
 
     "recording-path",
     "recording-name",
+    "recording-exclude-output",
+    "recording-exclude-mouse",
+    "recording-include-keys",
     "create-recording-path",
     "resize-method",
     "enable-audio-input",
@@ -181,10 +190,21 @@ enum RDP_ARGS_IDX {
     IDX_ENABLE_PRINTING,
 
     /**
+     * The name of the printer that will be passed through to the RDP server.
+     */
+    IDX_PRINTER_NAME,
+
+    /**
      * "true" if the virtual drive should be enabled, "false" or blank
      * otherwise.
      */
     IDX_ENABLE_DRIVE,
+    
+    /**
+     * The name of the virtual driver that will be passed through to the
+     * RDP connection.
+     */
+    IDX_DRIVE_NAME,
 
     /**
      * The local system path which will be used to persist the
@@ -306,6 +326,24 @@ enum RDP_ARGS_IDX {
     IDX_ENABLE_MENU_ANIMATIONS,
 
     /**
+     * "true" if bitmap caching should be disabled, "false" if bitmap caching
+     * should remain enabled.
+     */
+    IDX_DISABLE_BITMAP_CACHING,
+
+    /**
+     * "true" if the offscreen caching should be disabled, false if offscren
+     * caching should remain enabled.
+     */
+    IDX_DISABLE_OFFSCREEN_CACHING,
+
+    /**
+     * "true" if glyph caching should be disabled, false if glyph caching should
+     * remain enabled.
+     */
+    IDX_DISABLE_GLYPH_CACHING,
+
+    /**
      * The preconnection ID to send within the preconnection PDU when
      * initiating an RDP connection, if any.
      */
@@ -330,6 +368,11 @@ enum RDP_ARGS_IDX {
      * hostname of the RDP server will be used.
      */
     IDX_SFTP_HOSTNAME,
+
+    /**
+     * The public SSH host key of the SFTP server.  Optional.
+     */
+    IDX_SFTP_HOST_KEY,
 
     /**
      * The port of the SSH server to connect to for SFTP. If blank, the default
@@ -394,6 +437,32 @@ enum RDP_ARGS_IDX {
      * the given path.
      */
     IDX_RECORDING_NAME,
+
+    /**
+     * Whether output which is broadcast to each connected client (graphics,
+     * streams, etc.) should NOT be included in the session recording. Output
+     * is included by default, as it is necessary for any recording which must
+     * later be viewable as video.
+     */
+    IDX_RECORDING_EXCLUDE_OUTPUT,
+
+    /**
+     * Whether changes to mouse state, such as position and buttons pressed or
+     * released, should NOT be included in the session recording. Mouse state
+     * is included by default, as it is necessary for the mouse cursor to be
+     * rendered in any resulting video.
+     */
+    IDX_RECORDING_EXCLUDE_MOUSE,
+
+    /**
+     * Whether keys pressed and released should be included in the session
+     * recording. Key events are NOT included by default within the recording,
+     * as doing so has privacy and security implications.  Including key events
+     * may be necessary in certain auditing contexts, but should only be done
+     * with caution. Key events can easily contain sensitive information, such
+     * as passwords, credit card numbers, etc.
+     */
+    IDX_RECORDING_INCLUDE_KEYS,
 
     /**
      * Whether the specified screen recording path should automatically be
@@ -617,7 +686,7 @@ guac_rdp_settings* guac_rdp_parse_args(guac_user* user,
     /* Client name */
     settings->client_name =
         guac_user_parse_args_string(user, GUAC_RDP_CLIENT_ARGS, argv,
-                IDX_CLIENT_NAME, NULL);
+                IDX_CLIENT_NAME, "Guacamole RDP");
 
     /* Initial program */
     settings->initial_program =
@@ -671,6 +740,18 @@ guac_rdp_settings* guac_rdp_parse_args(guac_user* user,
     settings->menu_animations_enabled =
         guac_user_parse_args_boolean(user, GUAC_RDP_CLIENT_ARGS, argv,
                 IDX_ENABLE_MENU_ANIMATIONS, 0);
+
+    settings->disable_bitmap_caching =
+        guac_user_parse_args_boolean(user, GUAC_RDP_CLIENT_ARGS, argv,
+                IDX_DISABLE_BITMAP_CACHING, 0);
+
+    settings->disable_offscreen_caching =
+        guac_user_parse_args_boolean(user, GUAC_RDP_CLIENT_ARGS, argv,
+                IDX_DISABLE_OFFSCREEN_CACHING, 0);
+
+    settings->disable_glyph_caching =
+        guac_user_parse_args_boolean(user, GUAC_RDP_CLIENT_ARGS, argv,
+                IDX_DISABLE_GLYPH_CACHING, 0);
 
     /* Session color depth */
     settings->color_depth = 
@@ -726,10 +807,20 @@ guac_rdp_settings* guac_rdp_parse_args(guac_user* user,
         guac_user_parse_args_boolean(user, GUAC_RDP_CLIENT_ARGS, argv,
                 IDX_ENABLE_PRINTING, 0);
 
+    /* Name of redirected printer */
+    settings->printer_name =
+        guac_user_parse_args_string(user, GUAC_RDP_CLIENT_ARGS, argv,
+                IDX_PRINTER_NAME, "Guacamole Printer");
+
     /* Drive enable/disable */
     settings->drive_enabled =
         guac_user_parse_args_boolean(user, GUAC_RDP_CLIENT_ARGS, argv,
                 IDX_ENABLE_DRIVE, 0);
+    
+    /* Name of the drive being passed through */
+    settings->drive_name =
+        guac_user_parse_args_string(user, GUAC_RDP_CLIENT_ARGS, argv,
+                IDX_DRIVE_NAME, "Guacamole Filesystem");
 
     settings->drive_path =
         guac_user_parse_args_string(user, GUAC_RDP_CLIENT_ARGS, argv,
@@ -759,6 +850,11 @@ guac_rdp_settings* guac_rdp_parse_args(guac_user* user,
     settings->sftp_hostname =
         guac_user_parse_args_string(user, GUAC_RDP_CLIENT_ARGS, argv,
                 IDX_SFTP_HOSTNAME, settings->hostname);
+
+    /* The public SSH host key. */
+    settings->sftp_host_key =
+        guac_user_parse_args_string(user, GUAC_RDP_CLIENT_ARGS, argv,
+                IDX_SFTP_HOST_KEY, NULL);
 
     /* Port for SFTP connection */
     settings->sftp_port =
@@ -811,6 +907,21 @@ guac_rdp_settings* guac_rdp_parse_args(guac_user* user,
     settings->recording_name =
         guac_user_parse_args_string(user, GUAC_RDP_CLIENT_ARGS, argv,
                 IDX_RECORDING_NAME, GUAC_RDP_DEFAULT_RECORDING_NAME);
+
+    /* Parse output exclusion flag */
+    settings->recording_exclude_output =
+        guac_user_parse_args_boolean(user, GUAC_RDP_CLIENT_ARGS, argv,
+                IDX_RECORDING_EXCLUDE_OUTPUT, 0);
+
+    /* Parse mouse exclusion flag */
+    settings->recording_exclude_mouse =
+        guac_user_parse_args_boolean(user, GUAC_RDP_CLIENT_ARGS, argv,
+                IDX_RECORDING_EXCLUDE_MOUSE, 0);
+
+    /* Parse key event inclusion flag */
+    settings->recording_include_keys =
+        guac_user_parse_args_boolean(user, GUAC_RDP_CLIENT_ARGS, argv,
+                IDX_RECORDING_INCLUDE_KEYS, 0);
 
     /* Parse path creation flag */
     settings->create_recording_path =
@@ -891,6 +1002,7 @@ void guac_rdp_settings_free(guac_rdp_settings* settings) {
     /* Free settings strings */
     free(settings->client_name);
     free(settings->domain);
+    free(settings->drive_name);
     free(settings->drive_path);
     free(settings->hostname);
     free(settings->initial_program);
@@ -902,6 +1014,7 @@ void guac_rdp_settings_free(guac_rdp_settings* settings) {
     free(settings->remote_app_args);
     free(settings->remote_app_dir);
     free(settings->username);
+    free(settings->printer_name);
 
     /* Free channel name array */
     if (settings->svc_names != NULL) {
@@ -922,6 +1035,7 @@ void guac_rdp_settings_free(guac_rdp_settings* settings) {
     /* Free SFTP settings */
     free(settings->sftp_directory);
     free(settings->sftp_root_directory);
+    free(settings->sftp_host_key);
     free(settings->sftp_hostname);
     free(settings->sftp_passphrase);
     free(settings->sftp_password);
@@ -1041,7 +1155,7 @@ static char* guac_rdp_strdup(const char* str) {
 
 void guac_rdp_push_settings(guac_rdp_settings* guac_settings, freerdp* rdp) {
 
-    BOOL bitmap_cache;
+    BOOL bitmap_cache = !guac_settings->disable_bitmap_caching;
     rdpSettings* rdp_settings = rdp->settings;
 
     /* Authentication */
@@ -1305,7 +1419,9 @@ void guac_rdp_push_settings(guac_rdp_settings* guac_settings, freerdp* rdp) {
 
     /* Order support */
 #ifdef LEGACY_RDPSETTINGS
-    bitmap_cache = rdp_settings->bitmap_cache;
+    rdp_settings->bitmap_cache = bitmap_cache;
+    rdp_settings->offscreen_bitmap_cache = !guac_settings->disable_offscreen_caching;
+    rdp_settings->glyph_cache = !guac_settings->disable_glyph_caching;
     rdp_settings->os_major_type = OSMAJORTYPE_UNSPECIFIED;
     rdp_settings->os_minor_type = OSMINORTYPE_UNSPECIFIED;
     rdp_settings->desktop_resize = TRUE;
@@ -1334,7 +1450,9 @@ void guac_rdp_push_settings(guac_rdp_settings* guac_settings, freerdp* rdp) {
     rdp_settings->order_support[NEG_ELLIPSE_SC_INDEX] = FALSE;
     rdp_settings->order_support[NEG_ELLIPSE_CB_INDEX] = FALSE;
 #else
-    bitmap_cache = rdp_settings->BitmapCacheEnabled;
+    rdp_settings->BitmapCacheEnabled = bitmap_cache;
+    rdp_settings->OffscreenSupportLevel = !guac_settings->disable_offscreen_caching;
+    rdp_settings->GlyphSupportLevel = !guac_settings->disable_glyph_caching ? GLYPH_SUPPORT_FULL : GLYPH_SUPPORT_NONE;
     rdp_settings->OsMajorType = OSMAJORTYPE_UNSPECIFIED;
     rdp_settings->OsMinorType = OSMINORTYPE_UNSPECIFIED;
     rdp_settings->DesktopResize = TRUE;

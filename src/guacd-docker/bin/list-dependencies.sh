@@ -1,3 +1,4 @@
+#!/bin/sh -e
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,44 +18,31 @@
 # under the License.
 #
 
-#
-# Project name / version
-#
+##
+## @fn list-dependencies.sh
+##
+## Lists the Debian/Ubuntu package names for all library dependencies of the
+## given binaries. Each package is only listed once, even if multiple binaries
+## provided by the same package are given.
+##
+## @param ...
+##     The full paths to all binaries being checked.
+##
 
-PROJECT_NAME   = libguac
-PROJECT_NUMBER = 0.9.13-incubating
+while [ -n "$1" ]; do
 
-#
-# Warn about undocumented parameters and return values, but do not fill output
-# with verbose progress info.
-#
+    # For all non-Guacamole library dependencies
+    ldd "$1" | grep -v 'libguac' | awk '/=>/{print $(NF-1)}' \
+        | while read LIBRARY; do
 
-QUIET            = YES
-WARN_NO_PARAMDOC = YES
+        # Determine the Debian package which is associated with that
+        # library, if any
+        dpkg-query -S "$LIBRARY" 2> /dev/null || true
 
-#
-# Output format
-#
+    done
 
-ALPHABETICAL_INDEX    = YES
-GENERATE_HTML         = YES
-GENERATE_LATEX        = NO
-IGNORE_PREFIX         = guac_ vguac_
-OPTIMIZE_OUTPUT_FOR_C = YES
-OUTPUT_DIRECTORY      = doxygen-output
-RECURSIVE             = YES 
-SHOW_INCLUDE_FILES    = NO
+    # Next binary
+    shift
 
-#
-# Input format
-#
-
-CASE_SENSE_NAMES     = YES
-EXCLUDE_SYMBOLS      = __* guac_palette*
-FILE_PATTERNS        = *.h
-INPUT                = ../src/libguac/guacamole
-JAVADOC_AUTOBRIEF    = YES
-STRIP_FROM_PATH      = ../src/libguac
-TAB_SIZE             = 4
-TYPEDEF_HIDES_STRUCT = YES
+done | cut -f1 -d: | sort -u
 

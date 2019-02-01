@@ -16,6 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+# NOTE: Parts of this file (Makefile.am) are automatically transcluded verbatim
+# into Makefile.in. Though the build system (GNU Autotools) automatically adds
+# its own license boilerplate to the generated Makefile.in, that boilerplate
+# does not apply to the transcluded portions of Makefile.am which are licensed
+# to you by the ASF under the Apache License, Version 2.0, as described above.
+#
 
 AUTOMAKE_OPTIONS = foreign
 ACLOCAL_AMFLAGS = -I m4
@@ -26,6 +32,7 @@ libguac_client_telnet_la_SOURCES = \
     client.c                       \
     clipboard.c                    \
     input.c                        \
+    pipe.c                         \
     settings.c                     \
     telnet.c                       \
     user.c
@@ -34,6 +41,7 @@ noinst_HEADERS = \
     client.h     \
     clipboard.h  \
     input.h      \
+    pipe.h       \
     settings.h   \
     telnet.h     \
     user.h

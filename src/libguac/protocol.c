@@ -615,6 +615,24 @@ int guac_protocol_send_identity(guac_socket* socket, const guac_layer* layer) {
 
 }
 
+int guac_protocol_send_key(guac_socket* socket, int keysym, int pressed,
+        guac_timestamp timestamp) {
+
+    int ret_val;
+
+    guac_socket_instruction_begin(socket);
+    ret_val =
+           guac_socket_write_string(socket, "3.key,")
+        || __guac_socket_write_length_int(socket, keysym)
+        || guac_socket_write_string(socket, pressed ? ",1.1," : ",1.0,")
+        || __guac_socket_write_length_int(socket, timestamp)
+        || guac_socket_write_string(socket, ";");
+
+    guac_socket_instruction_end(socket);
+    return ret_val;
+
+}
+
 int guac_protocol_send_lfill(guac_socket* socket,
         guac_composite_mode mode, const guac_layer* layer,
         const guac_layer* srcl) {
@@ -684,7 +702,8 @@ int guac_protocol_send_lstroke(guac_socket* socket,
 
 }
 
-int guac_protocol_send_mouse(guac_socket* socket, int x, int y) {
+int guac_protocol_send_mouse(guac_socket* socket, int x, int y,
+        int button_mask, guac_timestamp timestamp) {
 
     int ret_val;
 
@@ -694,6 +713,10 @@ int guac_protocol_send_mouse(guac_socket* socket, int x, int y) {
         || __guac_socket_write_length_int(socket, x)
         || guac_socket_write_string(socket, ",")
         || __guac_socket_write_length_int(socket, y)
+        || guac_socket_write_string(socket, ",")
+        || __guac_socket_write_length_int(socket, button_mask)
+        || guac_socket_write_string(socket, ",")
+        || __guac_socket_write_length_int(socket, timestamp)
         || guac_socket_write_string(socket, ";");
 
     guac_socket_instruction_end(socket);

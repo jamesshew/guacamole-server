@@ -26,6 +26,7 @@
 #include "sftp.h"
 #include "ssh.h"
 #include "terminal/terminal.h"
+#include "ttymode.h"
 
 #ifdef ENABLE_SSH_AGENT
 #include "ssh_agent.h"
@@ -162,8 +163,14 @@ void* ssh_input_thread(void* data) {
         pthread_mutex_lock(&(ssh_client->term_channel_lock));
         libssh2_channel_write(ssh_client->term_channel, buffer, bytes_read);
         pthread_mutex_unlock(&(ssh_client->term_channel_lock));
+
+        /* Make sure ssh_input_thread can be terminated anyway */
+        if (client->state == GUAC_CLIENT_STOPPING)
+            break;
     }
 
+    /* Stop the client so that ssh_client_thread can be terminated */
+    guac_client_stop(client);
     return NULL;
 
 }
@@ -185,19 +192,24 @@ void* ssh_client_thread(void* data) {
         return NULL;
     }
 
+    char ssh_ttymodes[GUAC_SSH_TTYMODES_SIZE(1)];
+
     /* Set up screen recording, if requested */
     if (settings->recording_path != NULL) {
-        guac_common_recording_create(client,
+        ssh_client->recording = guac_common_recording_create(client,
                 settings->recording_path,
                 settings->recording_name,
-                settings->create_recording_path);
+                settings->create_recording_path,
+                !settings->recording_exclude_output,
+                !settings->recording_exclude_mouse,
+                settings->recording_include_keys);
     }
 
     /* Create terminal */
-    ssh_client->term = guac_terminal_create(client,
-            settings->font_name, settings->font_size,
+    ssh_client->term = guac_terminal_create(client, ssh_client->clipboard,
+            settings->max_scrollback, settings->font_name, settings->font_size,
             settings->resolution, settings->width, settings->height,
-            settings->color_scheme);
+            settings->color_scheme, settings->backspace);
 
     /* Fail if terminal init failed */
     if (ssh_client->term == NULL) {
@@ -221,9 +233,13 @@ void* ssh_client_thread(void* data) {
         return NULL;
     }
 
+    /* Ensure connection is kept alive during lengthy connects */
+    guac_socket_require_keep_alive(client->socket);
+
     /* Open SSH session */
     ssh_client->session = guac_common_ssh_create_session(client,
-            settings->hostname, settings->port, ssh_client->user, settings->server_alive_interval);
+            settings->hostname, settings->port, ssh_client->user, settings->server_alive_interval,
+            settings->host_key);
     if (ssh_client->session == NULL) {
         /* Already aborted within guac_common_ssh_create_session() */
         return NULL;
@@ -263,7 +279,8 @@ void* ssh_client_thread(void* data) {
         guac_client_log(client, GUAC_LOG_DEBUG, "Reconnecting for SFTP...");
         ssh_client->sftp_session =
             guac_common_ssh_create_session(client, settings->hostname,
-                    settings->port, ssh_client->user, settings->server_alive_interval);
+                    settings->port, ssh_client->user, settings->server_alive_interval,
+                    settings->host_key);
         if (ssh_client->sftp_session == NULL) {
             /* Already aborted within guac_common_ssh_create_session() */
             return NULL;
@@ -287,9 +304,18 @@ void* ssh_client_thread(void* data) {
 
     }
 
+    /* Set up the ttymode array prior to requesting the PTY */
+    int ttymodeBytes = guac_ssh_ttymodes_init(ssh_ttymodes,
+            GUAC_SSH_TTY_OP_VERASE, settings->backspace, GUAC_SSH_TTY_OP_END);
+    if (ttymodeBytes < 1)
+        guac_client_log(client, GUAC_LOG_WARNING, "Unable to set TTY modes."
+                "  Backspace may not work as expected.");
+
     /* Request PTY */
-    if (libssh2_channel_request_pty_ex(ssh_client->term_channel, "linux", sizeof("linux")-1, NULL, 0,
-            ssh_client->term->term_width, ssh_client->term->term_height, 0, 0)) {
+    if (libssh2_channel_request_pty_ex(ssh_client->term_channel,
+            settings->terminal_type, strlen(settings->terminal_type),
+            ssh_ttymodes, ttymodeBytes, ssh_client->term->term_width,
+            ssh_client->term->term_height, 0, 0)) {
         guac_client_abort(client, GUAC_PROTOCOL_STATUS_UPSTREAM_ERROR, "Unable to allocate PTY.");
         return NULL;
     }
@@ -312,6 +338,7 @@ void* ssh_client_thread(void* data) {
 
     /* Logged in */
     guac_client_log(client, GUAC_LOG_INFO, "SSH connection successful.");
+    guac_terminal_start(ssh_client->term);
 
     /* Start input thread */
     if (pthread_create(&(input_thread), NULL, ssh_input_thread, (void*) client)) {
@@ -336,6 +363,12 @@ void* ssh_client_thread(void* data) {
 
         /* Stop reading at EOF */
         if (libssh2_channel_eof(ssh_client->term_channel)) {
+            pthread_mutex_unlock(&(ssh_client->term_channel_lock));
+            break;
+        }
+
+        /* Client is stopping, break the loop */
+        if (client->state == GUAC_CLIENT_STOPPING) {
             pthread_mutex_unlock(&(ssh_client->term_channel_lock));
             break;
         }

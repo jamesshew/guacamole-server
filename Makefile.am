@@ -16,22 +16,30 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+# NOTE: Parts of this file (Makefile.am) are automatically transcluded verbatim
+# into Makefile.in. Though the build system (GNU Autotools) automatically adds
+# its own license boilerplate to the generated Makefile.in, that boilerplate
+# does not apply to the transcluded portions of Makefile.am which are licensed
+# to you by the ASF under the Apache License, Version 2.0, as described above.
+#
 
 ACLOCAL_AMFLAGS = -I m4
 
 # Subprojects
-DIST_SUBDIRS =           \
-    src/libguac          \
-    src/common           \
-    src/common-ssh       \
-    src/terminal         \
-    src/guacd            \
-    src/guacenc          \
-    src/pulse            \
-    src/protocols/rdp    \
-    src/protocols/ssh    \
-    src/protocols/telnet \
-    src/protocols/vnc    \
+DIST_SUBDIRS =               \
+    src/libguac              \
+    src/common               \
+    src/common-ssh           \
+    src/terminal             \
+    src/guacd                \
+    src/guacenc              \
+    src/guaclog              \
+    src/pulse                \
+    src/protocols/kubernetes \
+    src/protocols/rdp        \
+    src/protocols/ssh        \
+    src/protocols/telnet     \
+    src/protocols/vnc        \
     tests
 
 SUBDIRS =        \
@@ -49,6 +57,10 @@ endif
 
 if ENABLE_PULSE
 SUBDIRS += src/pulse
+endif
+
+if ENABLE_KUBERNETES
+SUBDIRS += src/protocols/kubernetes
 endif
 
 if ENABLE_RDP
@@ -75,14 +87,17 @@ if ENABLE_GUACENC
 SUBDIRS += src/guacenc
 endif
 
-EXTRA_DIST =      \
-    .dockerignore \
-    CONTRIBUTING  \
-    DISCLAIMER    \
-    Dockerfile    \
-    LICENSE       \
-    NOTICE        \
-    bin/guacctl   \
-    doc/Doxyfile  \
+if ENABLE_GUACLOG
+SUBDIRS += src/guaclog
+endif
+
+EXTRA_DIST =         \
+    .dockerignore    \
+    CONTRIBUTING     \
+    Dockerfile       \
+    LICENSE          \
+    NOTICE           \
+    bin/guacctl      \
+    doc/Doxyfile.in  \
     src/guacd-docker
 

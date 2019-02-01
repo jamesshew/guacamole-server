@@ -107,6 +107,32 @@ int guac_protocol_send_error(guac_socket* socket, const char* error,
         guac_protocol_status status);
 
 /**
+ * Sends a key instruction over the given guac_socket connection.
+ *
+ * If an error occurs sending the instruction, a non-zero value is
+ * returned, and guac_error is set appropriately.
+ *
+ * @param socket
+ *     The guac_socket connection to use.
+ *
+ * @param keysym
+ *     The X11 keysym of the key that was pressed or released.
+ *
+ * @param pressed
+ *     Non-zero if the key represented by the given keysym is currently
+ *     pressed, zero if it is released.
+ *
+ * @param timestamp
+ *     The server timestamp (in milliseconds) at the point in time this key
+ *     event was acknowledged.
+ *
+ * @return
+ *     Zero on success, non-zero on error.
+ */
+int guac_protocol_send_key(guac_socket* socket, int keysym, int pressed,
+        guac_timestamp timestamp);
+
+/**
  * Sends a log instruction over the given guac_socket connection. This is
  * mainly useful in debugging.
  *
@@ -159,10 +185,28 @@ int vguac_protocol_send_log(guac_socket* socket, const char* format,
  * @param y
  *     The Y coordinate of the current mouse position.
  *
+ * @param button_mask
+ *     An integer value representing the current state of each button, where
+ *     the Nth bit within the integer is set to 1 if and only if the Nth mouse
+ *     button is currently pressed. The lowest-order bit is the left mouse
+ *     button, followed by the middle button, right button, and finally the up
+ *     and down buttons of the scroll wheel.
+ *
+ *     @see GUAC_CLIENT_MOUSE_LEFT
+ *     @see GUAC_CLIENT_MOUSE_MIDDLE
+ *     @see GUAC_CLIENT_MOUSE_RIGHT
+ *     @see GUAC_CLIENT_MOUSE_SCROLL_UP
+ *     @see GUAC_CLIENT_MOUSE_SCROLL_DOWN
+ *
+ * @param timestamp
+ *     The server timestamp (in milliseconds) at the point in time this mouse
+ *     position was acknowledged.
+ *
  * @return
  *     Zero on success, non-zero on error.
  */
-int guac_protocol_send_mouse(guac_socket* socket, int x, int y);
+int guac_protocol_send_mouse(guac_socket* socket, int x, int y,
+        int button_mask, guac_timestamp timestamp);
 
 /**
  * Sends a nest instruction over the given guac_socket connection.
